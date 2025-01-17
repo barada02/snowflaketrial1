@@ -174,53 +174,81 @@ def answer_question(myquestion):
 
 def main():
     
-    st.title(f":speech_balloon: Chat Document Assistant with Snowflake Cortex")
-    st.write("This is the list of documents you already have and that will be used to answer your questions:")
+    st.set_page_config(layout="wide", page_title="Document Chat Assistant")
+    
+    # Custom CSS for better styling
+    st.markdown("""
+        <style>
+        .stApp {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .main-header {
+            text-align: center;
+            color: #0E1117;
+            padding: 1.5rem 0;
+            border-bottom: 2px solid #E0E0E0;
+            margin-bottom: 2rem;
+        }
+        .document-section {
+            background-color: #F8F9FA;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Main header with emoji and title
+    st.markdown("<div class='main-header'><h1>📚 Document Chat Assistant</h1><p>Powered by Snowflake Cortex</p></div>", unsafe_allow_html=True)
+    
+    # Document section with better styling
+    st.markdown("<div class='document-section'>", unsafe_allow_html=True)
+    st.subheader("📋 Available Documents")
+    st.write("Here are the documents that I can help you with:")
     docs_available = session.sql("ls @docs").collect()
     list_docs = []
     for doc in docs_available:
         list_docs.append(doc["name"])
-    st.dataframe(list_docs)
+    st.dataframe(list_docs, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     config_options()
     init_messages()
      
-    # Display chat messages from history on app rerun
+    # Chat interface with better styling
+    st.markdown("<div style='margin-top: 2rem;'>", unsafe_allow_html=True)
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
+        with st.chat_message(message["role"], avatar="🧑‍💻" if message["role"] == "user" else "🤖"):
             st.markdown(message["content"])
     
-    # Accept user input
-    if question := st.chat_input("What do you want to know about your products?"):
-        # Add user message to chat history
+    # Chat input with custom placeholder
+    if question := st.chat_input("Ask me anything about the documents..."):
         st.session_state.messages.append({"role": "user", "content": question})
-        # Display user message in chat message container
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar="🧑‍💻"):
             st.markdown(question)
-        # Display assistant response in chat message container
-        with st.chat_message("assistant"):
+        
+        with st.chat_message("assistant", avatar="🤖"):
             message_placeholder = st.empty()
-    
+            
             question = question.replace("'","")
-    
-            with st.spinner(f"{st.session_state.model_name} thinking..."):
+            
+            with st.spinner("🤔 Analyzing documents..."):
                 response, relative_paths = answer_question(question)            
                 response = response.replace("'", "")
                 message_placeholder.markdown(response)
 
                 if relative_paths != "None":
-                    with st.sidebar.expander("Related Documents"):
+                    with st.sidebar.expander("📑 Related Documents"):
                         for path in relative_paths:
                             cmd2 = f"select GET_PRESIGNED_URL(@docs, '{path}', 360) as URL_LINK from directory(@docs)"
                             df_url_link = session.sql(cmd2).to_pandas()
                             url_link = df_url_link._get_value(0,'URL_LINK')
-                
-                            display_url = f"Doc: [{path}]({url_link})"
+                        
+                            display_url = f"📄 [{path}]({url_link})"
                             st.sidebar.markdown(display_url)
-
         
         st.session_state.messages.append({"role": "assistant", "content": response})
-
-
+        
 if __name__ == "__main__":
     main()
